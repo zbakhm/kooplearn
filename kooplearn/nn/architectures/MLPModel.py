@@ -22,8 +22,8 @@ class MLPModel(nn.Module):
         }
         return model_output
 
-    @staticmethod
-    def time_series_dataset_to_model_kwargs(dataset: TimeseriesDataset):
-        return {'input_dim': dataset.lb_window_size,
-                'output_dim': dataset.horizon_size
-                }
+    # @staticmethod
+    # def time_series_dataset_to_model_kwargs(dataset: TimeseriesDataset):
+    #     return {'input_dim': dataset.lb_window_size,
+    #             'output_dim': dataset.horizon_size
+    #             }

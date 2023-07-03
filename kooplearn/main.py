@@ -25,7 +25,7 @@ class GeneralModel():
     #     self.decoder_ = decoder
 
     def fit_feature_map(self, x_train: ArrayLike, y_train: ArrayLike, datamodule: TimeseriesDataModule = None):
-        self.feature_map.initialize(self.koopman_estimator, self.decoder, datamodule)
+        self.feature_map.initialize(self.koopman_estimator, self.decoder, datamodule,,,
         self.feature_map.fit(x_train, y_train)
 
     def fit_decoder(self, x_train, y_train, datamodule):

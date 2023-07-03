@@ -12,21 +12,21 @@ class DNNModel(nn.Module):
     def forward(self):
         raise NotImplementedError
 
-    @classmethod
-    def from_time_series_dataset(cls):
-        raise NotImplementedError
-
-    @staticmethod
-    def time_series_dataset_to_model_kwargs():
-        raise NotImplementedError
-
-    @staticmethod
-    def time_series_dataset_to_optimizer_kwargs():
-        return {}
-
-    @staticmethod
-    def time_series_dataset_to_scheduler_kwargs():
-        return {}
+    # @classmethod
+    # def from_time_series_dataset(cls):
+    #     raise NotImplementedError
+    #
+    # @staticmethod
+    # def time_series_dataset_to_model_kwargs():
+    #     raise NotImplementedError
+    #
+    # @staticmethod
+    # def time_series_dataset_to_optimizer_kwargs():
+    #     return {}
+    #
+    # @staticmethod
+    # def time_series_dataset_to_scheduler_kwargs():
+    #     return {}
 
     @staticmethod
     def get_default_optimizer_fn():

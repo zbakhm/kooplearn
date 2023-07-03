@@ -3,8 +3,8 @@
 from kooplearn.main import GeneralModel
 from kooplearn.Datasets.TimeseriesDataModule import TimeseriesDataModule
 from kooplearn.feature_maps.DNNFeatureMap import DNNFeatureMap
-from kooplearn.nn.torch.MLPModel import MLPModel
-from kooplearn.nn.torch.KoopmanForecasterModule import KoopmanForecasterModule
+from kooplearn.nn.architectures.MLPModel import MLPModel
+from kooplearn.nn.modules.KoopmanDNNModule import KoopmanDNNModule
 from kooplearn.feature_maps.Decoder import Decoder
 from kooplearn.koopman_estimators.DirectEstimators import DirectRegressor
 import numpy as np
@@ -28,7 +28,7 @@ datamodule = TimeseriesDataModule(df_series=df, n_train=n_train, n_valid=n_valid
                                   lb_window_size=lb_window_size, horizon_size=horizon_size, batch_size=batch_size)
 
 # define feature map
-dnn_model_module_class = KoopmanForecasterModule
+dnn_model_module_class = KoopmanDNNModule
 dnn_model_class = MLPModel
 dnn_model_kwargs = {}  # dataset dependent hyperparameters will be initialized automatically
 
@@ -69,7 +69,7 @@ model.fit(datamodule=datamodule)
 # In this case we imagine that we are fitting the feature map when fitting the model, so behind the scenes, the feature
 # map is being fitted by
 # GeneralModel.fit_feature_map() -> DNNFeatureMap.fit() and the training loop is defined by
-# KoopmanForecasterModule.training_step() which calls KoopmanForecasterModule.base_step(),
+# KoopmanDNNModule.training_step() which calls KoopmanDNNModule.base_step(),
 # So if we want to inject information from the forecast task into the feature map, we have to modify the
 # base_step() method
 

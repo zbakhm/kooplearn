@@ -99,6 +99,9 @@ class TimeseriesDataset(Dataset):
         Y = []
         for idx in range(len(self)):
             data = self[idx]
+            # we skip the data if it's out of series (we will not use padding in the matrices)
+            if data['mask_out_of_series_left'].any() or data['mask_out_of_series_right'].any():
+                continue
             X.append(data['x_value'].numpy())
             Y.append(data['y_value'].numpy())
         X = np.stack(X)
