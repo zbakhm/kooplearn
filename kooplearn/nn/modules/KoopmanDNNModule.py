@@ -69,7 +69,7 @@ class KoopmanDNNModule(LightningModule):
         return optimizer
 
     def forward(self, batch):
-        # dimensions convention (batch_size, channels, temporal_dim)
+        # dimensions convention (..., channels, temporal_dim)
         return self.model(batch)
 
     def base_step(self, batch, batch_idx):
