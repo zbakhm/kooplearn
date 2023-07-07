@@ -1,10 +1,11 @@
 import torch
 
 
-def dpnets_loss(x_encoded, y_encoded, rank=None, p_loss_coef=1, s_loss_coef=1, reg_1_coef=1, reg_2_coef=1):
-    cov_x = x_encoded @ x_encoded.T
-    cov_y = y_encoded @ y_encoded.T
-    cov_xy = x_encoded @ y_encoded.T
+def dpnets_loss(x_encoded, y_encoded, rank=None, p_loss_coef=1.0, s_loss_coef=1.0, reg_1_coef=1.0, reg_2_coef=1.0):
+    n = x_encoded.shape[-2]
+    cov_x = x_encoded @ x_encoded.T / n
+    cov_y = y_encoded @ y_encoded.T / n
+    cov_xy = x_encoded @ y_encoded.T / n
     p_score = 0
     s_score = 0
     r1_score = 0
@@ -23,27 +24,27 @@ def dpnets_loss(x_encoded, y_encoded, rank=None, p_loss_coef=1, s_loss_coef=1, r
 
 
 def projection_score(cov_x, cov_y, cov_xy):
-    score = torch.linalg.lstsq(cov_x, cov_xy)  # == cov_x_inv @ cov_xy
+    score = torch.linalg.lstsq(cov_x, cov_xy).solution  # == cov_x_inv @ cov_xy
     score = score @ torch.linalg.pinv(cov_y, hermitian=True)  # == cov_x_inv @ cov_xy @ cov_y_inv
     score = torch.linalg.matrix_norm(score, ord='fro')  # == ||cov_x_inv @ cov_xy @ cov_y_inv|| 2, HS
-    return score
+    return score.mean()
 
 
 def spectral_score(cov_x, cov_y, cov_xy):
     score = torch.linalg.matrix_norm(cov_xy, ord='fro')  # == ||cov_xy|| 2, HS
     score = score / torch.linalg.matrix_norm(cov_x, ord=2)  # == ||cov_xy|| 2, HS / ||cov_x||
     score = score / torch.linalg.matrix_norm(cov_y, ord=2)  # == ||cov_xy|| 2, HS / (||cov_x|| * ||cov_y||)
-    return score
+    return score.mean()
 
 
 def regularization_1(cov_x, cov_y):
     identity = torch.eye(cov_x.shape[0])
     r1 = torch.linalg.matrix_norm(identity - cov_x, ord='fro')
     r2 = torch.linalg.matrix_norm(identity - cov_y, ord='fro')
-    return r1 + r2
+    return (r1 + r2).mean()
 
 
 def regularization_2(cov_x, cov_y, rank):
     r1 = rank + torch.trace(cov_x @ torch.log(cov_x) - cov_x)
     r2 = rank + torch.trace(cov_y @ torch.log(cov_y) - cov_y)
-    return r1 + r2
+    return (r1 + r2).mean()
