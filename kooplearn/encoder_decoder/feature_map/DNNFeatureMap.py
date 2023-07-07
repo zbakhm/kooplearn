@@ -1,4 +1,4 @@
-from kooplearn.feature_map.TrainableFeatureMap import TrainableFeatureMap
+from kooplearn.encoder_decoder.feature_map.TrainableFeatureMap import TrainableFeatureMap
 import lightning as L
 import torch
 

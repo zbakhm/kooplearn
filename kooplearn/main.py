@@ -2,7 +2,7 @@
 
 from feature_maps.FeatureMap import FeatureMap
 from feature_maps.Decoder import Decoder
-from koopman_estimators.BaseKoopmanEstimator import BaseKoopmanEstimator
+from kooplearn.encoder_decoder.koopman_estimators import BaseKoopmanEstimator
 from numpy.typing import ArrayLike
 from kooplearn.Datasets.TimeseriesDataModule import TimeseriesDataModule
 

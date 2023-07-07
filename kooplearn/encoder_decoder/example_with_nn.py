@@ -3,10 +3,10 @@
 from kooplearn.main import GeneralModel
 from kooplearn.Datasets.TimeseriesDataModule import TimeseriesDataModule
 from kooplearn.feature_maps.DNNFeatureMap import DNNFeatureMap
-from kooplearn.nn.architectures.MLPModel import MLPModel
-from kooplearn.nn.modules.KoopmanDNNModule import KoopmanDNNModule
+from kooplearn.encoder_decoder.nn.architectures import MLPModel
+from kooplearn.encoder_decoder.nn.modules.KoopmanDNNModule import KoopmanDNNModule
 from kooplearn.feature_maps.Decoder import Decoder
-from kooplearn.koopman_estimators.DirectEstimators import DirectRegressor
+from kooplearn.encoder_decoder.koopman_estimators import DirectRegressor
 import numpy as np
 import pandas as pd
 

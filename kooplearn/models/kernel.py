@@ -130,6 +130,7 @@ class KernelLowRankRegressor(BaseModel, RegressorMixin):
     def pre_fit_checks(self, X: ArrayLike, Y: ArrayLike):
         X = np.asarray(check_array(X, order='C', dtype=float, copy=True))
         Y = np.asarray(check_array(Y, order='C', dtype=float, copy=True))
+        # This is kind of a duplication, we could only perform the next line and delete the 2 lines above
         check_X_y(X, Y, multi_output=True)
 
         K_X, K_Y, K_YX = self._init_kernels(X, Y)

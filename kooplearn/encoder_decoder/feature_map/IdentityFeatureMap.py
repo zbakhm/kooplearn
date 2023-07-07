@@ -1,4 +1,4 @@
-from kooplearn.feature_map.FeatureMap import FeatureMap
+from kooplearn.encoder_decoder.feature_map.FeatureMap import FeatureMap
 from numpy.typing import ArrayLike
 
 class IdentityFeatureMap(FeatureMap):
