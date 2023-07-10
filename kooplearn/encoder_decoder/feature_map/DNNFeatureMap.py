@@ -1,9 +1,11 @@
-from kooplearn.encoder_decoder.feature_map.TrainableFeatureMap import TrainableFeatureMap
+from kooplearn.encoder_decoder.feature_map.FeatureMap import FeatureMap
 import lightning as L
 import torch
+from kooplearn.encoder_decoder.EncoderDecoderModel import EncoderDecoderModel
+from kooplearn.data.utils.TimeseriesDataModule import TimeseriesDataModule
 
 
-class LightningFeatureMap(TrainableFeatureMap):
+class DNNFeatureMap(FeatureMap):
     def __init__(self,
                  dnn_model_module_class,
                  dnn_model_class, dnn_model_kwargs,
@@ -37,12 +39,9 @@ class LightningFeatureMap(TrainableFeatureMap):
         self.dnn_model_module = None
         self.callbacks = None
         self.trainer = None
-        self.feature_map = None
         self.koopman_estimator = None
-        self.koopman_estimator_kwargs = None
         self.decoder = None
-        self.decoder_kwargs = None
-        self.dataset = None
+        self.model = None
 
     def initialize_logger(self):
         self.logger = self.logger_fn(**self.logger_kwargs)
@@ -58,8 +57,8 @@ class LightningFeatureMap(TrainableFeatureMap):
             optimizer_fn=self.optimizer_fn, optimizer_hyperparameters=self.optimizer_kwargs,
             scheduler_fn=self.scheduler_fn, scheduler_hyperparameters=self.scheduler_kwargs,
             scheduler_config=self.scheduler_config, loss_fn=self.loss_fn,
-            koopman_estimator=self.koopman_estimator, koopman_estimator_hyperparameters=self.koopman_estimator_kwargs,
-            decoder=self.decoder, decoder_hyperparameters=self.decoder_kwargs,
+            koopman_estimator=self.koopman_estimator,
+            decoder=self.decoder,
         )
 
     def initialize_callbacks(self):
@@ -68,21 +67,19 @@ class LightningFeatureMap(TrainableFeatureMap):
     def initialize_trainer(self):
         self.trainer = L.Trainer(**self.trainer_kwargs, callbacks=self.callbacks, logger=self.logger)
 
-    def initialize(self, datamodule, koopman_estimator=None, koopman_estimator_kwargs=None,
-                   decoder=None, decoder_kwargs=None):
-        self.koopman_estimator = koopman_estimator
-        self.koopman_estimator_kwargs = koopman_estimator_kwargs
-        self.decoder_kwargs = decoder_kwargs
-        self.decoder = decoder
-        self.datamodule = datamodule
+    def initialize(self, model: EncoderDecoderModel):
+        self.model = model
+        self.koopman_estimator = model.koopman_estimator
+        self.decoder = model.decoder
         self.initialize_logger()
         self.initialize_model_module()
         self.initialize_callbacks()
         self.initialize_trainer()
 
-    def fit(self, X = None, Y = None): #X and Y not used, here as placeholder to match the general case
-        if self.datamodule is None:
+    def fit(self, X=None, Y=None, datamodule_kwargs=None):
+        if datamodule_kwargs is None:
             raise ValueError('Datamodule is required to use DNNFeatureMap.')
+        self.datamodule = TimeseriesDataModule(**datamodule_kwargs)
         self.trainer.fit(self.dnn_model_module, self.datamodule)
 
     def __call__(self, X):
@@ -91,6 +88,6 @@ class LightningFeatureMap(TrainableFeatureMap):
         self.dnn_model_module.eval()
         with torch.no_grad():
             model_output = self.dnn_model_module(X)
-        return model_output['x_encoded'].detach().numpy() #Everything should be outputted as a Numpy array
+        return model_output['x_encoded'].detach().numpy()  # Everything should be outputted as a Numpy array
     # In the case where X is the entire dataset, we should implement a dataloader to avoid memory issues
     # (prediction on batches). For this we should implement a predict_step and call predict on the trainer.

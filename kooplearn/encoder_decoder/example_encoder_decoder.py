@@ -11,7 +11,9 @@ Y = data[1:]
 feature_map = PolynomialFeatureMap(degree=6)
 decoder = feature_map.decoder_from_feature_map(num_features=num_features)
 koopman_estimator = ExtendedDMD(feature_map=feature_map, rank=5)
-model = EncoderDecoderModel(feature_map=feature_map, decoder=decoder, koopman_estimator=koopman_estimator)
+model = EncoderDecoderModel(feature_map=feature_map,
+                            koopman_estimator=koopman_estimator,
+                            decoder=decoder)
 model.fit(X, Y)
 
 

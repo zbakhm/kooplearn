@@ -38,7 +38,7 @@ class DNNModel(nn.Module):
 
     @staticmethod
     def get_default_scheduler_fn():
-        return torch.optim.lr_scheduler.ExponentialLR
+        return None  # from torch.optim.lr_scheduler
 
     @staticmethod
     def get_default_scheduler_kwargs():
@@ -54,9 +54,7 @@ class DNNModel(nn.Module):
 
     @staticmethod
     def get_default_callbacks_kwargs():
-        return [
-            dict(),
-        ]
+        return []  # list of dicts
 
     @staticmethod
     def get_default_loss_fn():
@@ -66,10 +64,10 @@ class DNNModel(nn.Module):
     def get_default_trainer_kwargs():
         return {}
 
-    @staticmethod
-    def get_default_datamodule_class():
-        return 1
-
-    @staticmethod
-    def get_default_datamodule_kwargs():
-        return {}
+    # @staticmethod
+    # def get_default_datamodule_class():
+    #     return 1
+    #
+    # @staticmethod
+    # def get_default_datamodule_kwargs():
+    #     return {}

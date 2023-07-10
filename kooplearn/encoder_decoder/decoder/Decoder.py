@@ -8,7 +8,7 @@ class Decoder:
     def __call__(self, X):
         pass
 
-    def initialize(self, model:EncoderDecoderModel):
+    def initialize(self, model: EncoderDecoderModel):
         pass
 
     def fit(self, X, Y):

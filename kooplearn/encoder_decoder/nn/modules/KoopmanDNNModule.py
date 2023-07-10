@@ -6,18 +6,18 @@ from kooplearn.data.utils.TimeseriesDataset import TimeseriesDataset
 
 class KoopmanDNNModule(LightningModule):
     def __init__(self, model_class, model_hyperparameters, optimizer_fn, optimizer_hyperparameters, loss_fn,
-                 koopman_estimator=None, koopman_estimator_hyperparameters=None,
-                 decoder=None, decoder_hyperparameters=None,
+                 koopman_estimator=None,  # koopman_estimator_hyperparameters=None,
+                 decoder=None,  # decoder_hyperparameters=None,
                  scheduler_fn=None, scheduler_hyperparameters=None, scheduler_config=None):
         super().__init__()
         for k, v in model_hyperparameters.items():
             self.hparamsxz[k] = v
         for k, v in optimizer_hyperparameters.items():
             self.hparams[f'optim_{k}'] = v
-        for k, v in koopman_estimator_hyperparameters.items():
-            self.hparams[f'koop_{k}'] = v
-        for k, v in decoder_hyperparameters.items():
-            self.hparams[f'dec_{k}'] = v
+        # for k, v in koopman_estimator_hyperparameters.items():
+        #     self.hparams[f'koop_{k}'] = v
+        # for k, v in decoder_hyperparameters.items():
+        #     self.hparams[f'dec_{k}'] = v
         for k, v in scheduler_hyperparameters.items():
             self.hparams[f'sched_{k}'] = v
         for k, v in scheduler_config.items():
