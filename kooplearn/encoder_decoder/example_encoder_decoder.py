@@ -1,4 +1,4 @@
-from kooplearn.encoder_decoder.EncoderDecoderModel import EncoderDecoderModel
+from kooplearn.encoder_decoder.DPNetsModel import EncoderDecoderModel
 from kooplearn.encoder_decoder.feature_map.PolynomialFeatureMap import PolynomialFeatureMap
 from kooplearn.encoder_decoder.koopman_estimators.ExtendedDMD import ExtendedDMD
 import numpy as np

@@ -3,22 +3,22 @@ import lightning as L
 import torch
 from kooplearn.encoder_decoder.DPNetsModel import EncoderDecoderModel
 from kooplearn.data.utils.TimeseriesDataModule import TimeseriesDataModule
+from kooplearn.encoder_decoder.nn.modules.DPNetsModule import DPNetsModule
 
 
-class DNNFeatureMap(FeatureMap):
+class DPNetsFeatureMap:
     def __init__(self,
-                 dnn_model_module_class,
                  dnn_model_class, dnn_model_kwargs,
                  optimizer_fn, optimizer_kwargs,
                  scheduler_fn, scheduler_kwargs, scheduler_config,
                  callbacks_fns, callbacks_kwargs,
                  logger_fn, logger_kwargs,
                  trainer_kwargs,
-                 loss_fn,
                  seed,
+                 loss_fn,
+                 dnn_model_class_2=None, dnn_model_kwargs_2=None,
                  ):
-        super().__init__()
-        self.dnn_model_module_class = dnn_model_module_class
+        self.dnn_model_module_class = DPNetsModule
         self.dnn_model_class = dnn_model_class
         self.dnn_model_kwargs = dnn_model_kwargs
         self.optimizer_fn = optimizer_fn
@@ -33,14 +33,14 @@ class DNNFeatureMap(FeatureMap):
         self.trainer_kwargs = trainer_kwargs
         self.loss_fn = loss_fn
         self.seed = seed
+        self.dnn_model_class_2 = dnn_model_class_2
+        self.dnn_model_kwargs_2 = dnn_model_kwargs_2
         L.seed_everything(seed)
         self.logger = None
         self.datamodule = None
         self.dnn_model_module = None
         self.callbacks = None
         self.trainer = None
-        self.koopman_estimator = None
-        self.decoder = None
         self.model = None
 
     def initialize_logger(self):
@@ -54,11 +54,10 @@ class DNNFeatureMap(FeatureMap):
     def initialize_model_module(self):
         self.dnn_model_module = self.dnn_model_module_class(
             model_class=self.dnn_model_class, model_hyperparameters=self.dnn_model_kwargs,
-            optimizer_fn=self.optimizer_fn, optimizer_hyperparameters=self.optimizer_kwargs,
+            optimizer_fn=self.optimizer_fn, optimizer_hyperparameters=self.optimizer_kwargs, loss_fn=self.loss_fn,
             scheduler_fn=self.scheduler_fn, scheduler_hyperparameters=self.scheduler_kwargs,
-            scheduler_config=self.scheduler_config, loss_fn=self.loss_fn,
-            koopman_estimator=self.koopman_estimator,
-            decoder=self.decoder,
+            scheduler_config=self.scheduler_config,
+            model_class_2=self.dnn_model_class_2, model_hyperparameters_2=self.dnn_model_kwargs_2,
         )
 
     def initialize_callbacks(self):
@@ -67,10 +66,7 @@ class DNNFeatureMap(FeatureMap):
     def initialize_trainer(self):
         self.trainer = L.Trainer(**self.trainer_kwargs, callbacks=self.callbacks, logger=self.logger)
 
-    def initialize(self, model: EncoderDecoderModel):
-        self.model = model
-        self.koopman_estimator = model.koopman_estimator
-        self.decoder = model.decoder
+    def initialize(self):
         self.initialize_logger()
         self.initialize_model_module()
         self.initialize_callbacks()

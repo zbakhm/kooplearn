@@ -1,4 +1,4 @@
-from kooplearn.encoder_decoder.EncoderDecoderModel import EncoderDecoderModel
+from kooplearn.encoder_decoder.DPNetsModel import EncoderDecoderModel
 
 
 class Decoder:
