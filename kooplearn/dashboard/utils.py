@@ -3,6 +3,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+import dash_bootstrap_components as dbc
+from dash import dcc, html
+
+import base64, io
+import pandas as pd
+
+
 PLOTLY_THEME = "plotly_dark"
 
 
@@ -247,3 +254,135 @@ def create_plot_pred(infos, preds):
 
 
 # TODO: plot x= time, y= the mode frequencies, z = amplitudes
+
+
+model_params = {
+        'KernelDMD': [
+            {'label': 'Reduced Rank', 'id': {'type': 'model-param', 'index': 'reduced_rank'}, 'type': 'checklist', 'default': True},
+            {'label': 'SVD Solver', 'id': {'type': 'model-param', 'index': 'svd_solver'}, 'type': 'dropdown', 'options': ['full', 'arnoldi', 'randomized'], 'default': 'full'},
+            {'label': 'Iterated Power', 'id': {'type': 'model-param', 'index': 'iterated_power'}, 'type': 'number', 'default': 1},
+            # {'label': 'N Oversamples', 'id': {'type': 'model-param', 'index': 'n_oversamples'}, 'type': 'number', 'default': 5},
+            {'label': 'Kernel', 'id': {'type': 'model-param', 'index': 'kernel'}, 'type': 'dropdown', 'options': ['DotProduct', 'RBF', 'Matern', '0.5*DotProduct + 0.5*RBF'], 'default': 'DotProduct'}, #'options': ['DotProduct', 'Exponentiation', 'PairwiseKernel', 'Sum', 'Product']
+            {'label': 'Length Scale', 'id': {'type': 'model-param', 'index': 'length_scale'}, 'type': 'number', 'default': 1.0},
+            # {'label': 'Optimal Sketching', 'id': {'type': 'model-param', 'index': 'optimal_sketching'}, 'type': 'checklist', 'default': False},
+            {'label': 'RNG Seed', 'id': {'type': 'model-param', 'index': 'rng_seed'}, 'type': 'number', 'default': None}
+        ],
+        'DeepEDMD': [
+            {'label': 'Maximum number of epochs', 'id': {'type': 'model-param', 'index': 'max_epochs'}, 'type': 'number', 'default': 10},
+            {'label': 'Reduced Rank', 'id': {'type': 'model-param', 'index': 'reduced_rank'}, 'type': 'checklist', 'default': True},
+            {'label': 'SVD Solver', 'id': {'type': 'model-param', 'index': 'svd_solver'}, 'type': 'dropdown', 'options': ['full', 'arnoldi', 'randomized'], 'default': 'full'},
+            {'label': 'Iterated Power', 'id': {'type': 'model-param', 'index': 'iterated_power'}, 'type': 'number', 'default': 1},
+            # {'label': 'N Oversamples', 'id': {'type': 'model-param', 'index': 'n_oversamples'}, 'type': 'number', 'default': 5},
+            {'label': 'RNG Seed', 'id': {'type': 'model-param', 'index': 'rng_seed'}, 'type': 'number', 'default': None}
+        ],
+        'ExtendedDMD': [
+            {'label': 'Reduced Rank', 'id': {'type': 'model-param', 'index': 'reduced_rank'}, 'type': 'checklist', 'default': True},
+            {'label': 'SVD Solver', 'id': {'type': 'model-param', 'index': 'svd_solver'}, 'type': 'dropdown', 'options': ['full', 'arnoldi', 'randomized'], 'default': 'full'},
+            {'label': 'Iterated Power', 'id': {'type': 'model-param', 'index': 'iterated_power'}, 'type': 'number', 'default': 1},
+            # {'label': 'N Oversamples', 'id': {'type': 'model-param', 'index': 'n_oversamples'}, 'type': 'number', 'default': 5},
+            {'label': 'FeatureMap', 'id': {'type': 'model-param', 'index': 'feature_map'}, 'type': 'dropdown', 'options': ['IdentityFeatureMap'], 'default': 'IdentityFeatureMap'},
+            {'label': 'RNG Seed', 'id': {'type': 'model-param', 'index': 'rng_seed'}, 'type': 'number', 'default': None}
+        ],
+        'DMD': [
+            {'label': 'Reduced Rank', 'id': {'type': 'model-param', 'index': 'reduced_rank'}, 'type': 'checklist', 'default': True},
+            {'label': 'SVD Solver', 'id': {'type': 'model-param', 'index': 'svd_solver'}, 'type': 'dropdown', 'options': ['full', 'arnoldi', 'randomized'], 'default': 'full'},
+            {'label': 'Iterated Power', 'id': {'type': 'model-param', 'index': 'iterated_power'}, 'type': 'number', 'default': 1},
+            # {'label': 'N Oversamples', 'id': {'type': 'model-param', 'index': 'n_oversamples'}, 'type': 'number', 'default': 5},
+            {'label': 'RNG Seed', 'id': {'type': 'model-param', 'index': 'rng_seed'}, 'type': 'number', 'default': None}
+        ],
+    }
+
+def create_model_params(model_name):
+    params = model_params.get(model_name, [])
+
+    children = []
+    for param in params:
+        if param['type'] == 'number':
+            children.append(html.Div([
+                dbc.Label(f"{param['label']}: ", style={"display": "inline-block", "margin-right": "8px"}),
+                dcc.Input(id=param['id'], type="number", value=param['default'], placeholder=param['label']),
+            ], className="p-2"))
+        elif param['type'] == 'dropdown':
+            children.append(html.Div([
+                dbc.Label(f"{param['label']}: ", style={"display": "inline-block", "margin-right": "8px"}),
+                dcc.Dropdown(id=param['id'], options=[{'label': val, 'value': val} for val in param['options']], value=param['default'], clearable=False),
+            ], className="p-2"))
+        elif param['type'] == 'checklist':
+            children.append(html.Div([
+                dbc.Label(f"{param['label']}: ", style={"display": "inline-block", "margin-right": "8px"}),
+                dcc.RadioItems(id=param['id'], options=['True', 'False'], value=str(param['default']), inline=True),
+            ], className="p-2"))
+
+    return children
+
+
+
+# Dictionary of dataset parameters
+dataset_params = {
+    'LinearModel': [
+        {'label': 'Noise', 'id': {'type': 'dynamic-param', 'index': 'noise'}, 'value': 1., 'step': 0.01},
+        {'label': 'RNG Seed', 'id': {'type': 'dynamic-param', 'index': 'rng_seed'}, 'value': None, 'step': 1},
+        {'label': 'Number features', 'id': {'type': 'dynamic-param', 'index': 'num_features'}, 'value': 10, 'step': 1},
+        {'label': 'Rang de la matrice', 'id': {'type': 'dynamic-param', 'index': 'r'}, 'value': 5, 'step': 1},
+        {'label': 'Lambda', 'id': {'type': 'dynamic-param', 'index': 'l'}, 'value': 1., 'step': 0.1}
+    
+    ],
+    'LogisticMap': [
+        {'label': 'r', 'id': {'type': 'dynamic-param', 'index': 'r'}, 'value': 4.0, 'step': 0.1},
+        {'label': 'N', 'id': {'type': 'dynamic-param', 'index': 'N'}, 'value': None, 'step': 1},
+        {'label': 'RNG Seed', 'id': {'type': 'dynamic-param', 'index': 'rng_seed'}, 'value': None, 'step': 1}
+    ],
+    'LangevinTripleWell1D': [
+        {'label': 'gamma', 'id': {'type': 'dynamic-param', 'index': 'gamma'}, 'value': 0.1, 'step': 0.01},
+        {'label': 'kt', 'id': {'type': 'dynamic-param', 'index': 'kt'}, 'value': 1.0, 'step': 0.1},
+        {'label': 'dt', 'id': {'type': 'dynamic-param', 'index': 'dt'}, 'value': 1e-4, 'step': 1e-5},
+        {'label': 'RNG Seed', 'id': {'type': 'dynamic-param', 'index': 'rng_seed'}, 'value': None, 'step': 1}
+    ],
+    'DuffingOscillator': [
+        {'label': 'alpha', 'id': {'type': 'dynamic-param', 'index': 'alpha'}, 'value': 0.5, 'step': 0.01},
+        {'label': 'beta', 'id': {'type': 'dynamic-param', 'index': 'beta'}, 'value': 0.0625, 'step': 0.0001},
+        {'label': 'gamma', 'id': {'type': 'dynamic-param', 'index': 'gamma'}, 'value': 0.1, 'step': 0.1},
+        {'label': 'delta', 'id': {'type': 'dynamic-param', 'index': 'delta'}, 'value': 2.5, 'step': 0.1},
+        {'label': 'omega', 'id': {'type': 'dynamic-param', 'index': 'omega'}, 'value': 2.0, 'step': 0.1},
+        {'label': 'dt', 'id': {'type': 'dynamic-param', 'index': 'dt'}, 'value': 0.01, 'step': 0.01}
+    ],
+    'Lorenz63': [
+        {'label': 'sigma', 'id': {'type': 'dynamic-param', 'index': 'sigma'}, 'value': 10, 'step': 1},
+        {'label': 'mu', 'id': {'type': 'dynamic-param', 'index': 'mu'}, 'value': 28, 'step': 1},
+        {'label': 'beta', 'id': {'type': 'dynamic-param', 'index': 'beta'}, 'value': 8 / 3, 'step': 0.01},
+        {'label': 'dt', 'id': {'type': 'dynamic-param', 'index': 'dt'}, 'value': 0.01, 'step': 0.01}
+    ]
+}
+
+def create_dataset_params(dataset_name):
+    # Get parameters for the selected dataset
+    params = dataset_params.get(dataset_name, [])
+    
+    # Create input components for each parameter
+    children = []
+    for param in params:
+        children.append(html.Div([
+            dbc.Label(f"{param['label']}: ", style={"display": "inline-block", "margin-right": "8px"},),
+            dcc.Input(id=param['id'], type="number", value=param['value'], step=param['step'], placeholder=param['label']),
+        ], className="p-2"))
+
+    return children
+
+
+def parse_contents(contents):
+    content_type, content_string = contents.split(',')
+
+    decoded = base64.b64decode(content_string)
+    try:
+        if 'csv' in content_type:
+            # Assume that the user uploaded a CSV file
+            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+        else:
+            raise ValueError('Unsupported file format')
+        print(df)
+        return df
+    except Exception as e:
+        print(e)
+        return html.Div([
+            'There was an error processing this file.'
+        ])

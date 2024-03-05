@@ -1,5 +1,6 @@
 import numpy as np
-from dash import Dash, Input, Output, callback, dcc, html
+import pandas as pd
+from dash import Dash, Input, Output, callback, dcc, html, no_update, callback_context
 from dash.dependencies import ALL, State
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
@@ -13,9 +14,10 @@ from kooplearn.dashboard.visualizer import Visualizer
 from kooplearn.datasets import *
 from kooplearn.models import *
 from kooplearn.data import traj_to_contexts
+from kooplearn.dashboard.utils import create_model_params, create_dataset_params, parse_contents
 
 from scipy.stats import ortho_group
-import numpy as np
+
 
 # stylesheet with the .dbc class to style  dcc, DataTable and AG Grid components with a Bootstrap theme
 dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
@@ -64,9 +66,32 @@ models = dbc.Tab([html.Div(
         label="Models"
         )
 
+
+file_upload = dcc.Upload(
+    id='upload-data',
+    children=html.Div(id='upload-text', children=[
+        'Drag and Drop or ',
+        html.A('Select a CSV File')
+    ]),
+    style={
+        'width': '100%',
+        'height': '60px',
+        'lineHeight': '60px',
+        'borderWidth': '1px',
+        'borderStyle': 'dashed',
+        'borderRadius': '5px',
+        'textAlign': 'center',
+        'margin': '10px'
+    },
+    multiple=False
+)
+
+
 datasets = dbc.Tab([html.Div(
             [
-                dbc.Label("Select a dataset"),
+                file_upload,
+
+                dbc.Label("Select a predefined dataset"),
                 dcc.Dropdown(
                     id="dataset-dropdown",
                     options=[
@@ -157,12 +182,31 @@ graph2 = dbc.Col([html.Div(
                 ],
                 )], align="center", width=7)
 
+
+
+dimension_selector = html.Div([
+    dbc.Row([
+        dbc.Col([
+            html.Label('Select Dimension 1 (x-axis):'),
+            dcc.Dropdown(id='dimension-dropdown-x', options=[], value=None),
+        ], width=6),
+        dbc.Col([
+            html.Label('Select Dimension 2 (x-axis):'),
+            dcc.Dropdown(id='dimension-dropdown-y', options=[], value=None),
+        ], width=6),
+    ]),
+], className="p-3")
+
+
 dataset_plot = dbc.Tab([html.Div(
             [
+                dimension_selector,
                 dcc.Graph(id="dataset-plot"),
             ],
             className="p-3",
         )], label="Dataset Plot")
+
+hidden_div = html.Div(id='intermediate-value', style={'display': 'none'})
 
 tab_plots = dbc.Tab(dbc.Row([graph1, graph2]), label="Plots")
 
@@ -183,123 +227,74 @@ app.layout = dbc.Container(
             dbc.Col([tabs_graphs], width=8),
         ]),
         html.Div(id="click-count", style={"display": "none"}, children="1"),
+
+        hidden_div,
     ], 
     fluid=True,
     className="bg-light",
 )
 
 
-# Dictionary of dataset parameters
-dataset_params = {
-    'LinearModel': [
-        {'label': 'Noise', 'id': {'type': 'dynamic-param', 'index': 'noise'}, 'value': 1., 'step': 0.01},
-        {'label': 'RNG Seed', 'id': {'type': 'dynamic-param', 'index': 'rng_seed'}, 'value': None, 'step': 1},
-        {'label': 'Number features', 'id': {'type': 'dynamic-param', 'index': 'num_features'}, 'value': 10, 'step': 1},
-        {'label': 'Rang de la matrice', 'id': {'type': 'dynamic-param', 'index': 'r'}, 'value': 5, 'step': 1},
-        {'label': 'Lambda', 'id': {'type': 'dynamic-param', 'index': 'l'}, 'value': 1., 'step': 0.1}
-    
+
+@app.callback(
+    [
+        Output('intermediate-value', 'children'),
+        Output('dataset-dropdown', 'value'),
     ],
-    'LogisticMap': [
-        {'label': 'r', 'id': {'type': 'dynamic-param', 'index': 'r'}, 'value': 4.0, 'step': 0.1},
-        {'label': 'N', 'id': {'type': 'dynamic-param', 'index': 'N'}, 'value': None, 'step': 1},
-        {'label': 'RNG Seed', 'id': {'type': 'dynamic-param', 'index': 'rng_seed'}, 'value': None, 'step': 1}
+    [
+        Input('upload-data', 'contents'),
     ],
-    'LangevinTripleWell1D': [
-        {'label': 'gamma', 'id': {'type': 'dynamic-param', 'index': 'gamma'}, 'value': 0.1, 'step': 0.01},
-        {'label': 'kt', 'id': {'type': 'dynamic-param', 'index': 'kt'}, 'value': 1.0, 'step': 0.1},
-        {'label': 'dt', 'id': {'type': 'dynamic-param', 'index': 'dt'}, 'value': 1e-4, 'step': 1e-5},
-        {'label': 'RNG Seed', 'id': {'type': 'dynamic-param', 'index': 'rng_seed'}, 'value': None, 'step': 1}
+    [
+        State('upload-data', 'filename'),
     ],
-    'DuffingOscillator': [
-        {'label': 'alpha', 'id': {'type': 'dynamic-param', 'index': 'alpha'}, 'value': 0.5, 'step': 0.01},
-        {'label': 'beta', 'id': {'type': 'dynamic-param', 'index': 'beta'}, 'value': 0.0625, 'step': 0.0001},
-        {'label': 'gamma', 'id': {'type': 'dynamic-param', 'index': 'gamma'}, 'value': 0.1, 'step': 0.1},
-        {'label': 'delta', 'id': {'type': 'dynamic-param', 'index': 'delta'}, 'value': 2.5, 'step': 0.1},
-        {'label': 'omega', 'id': {'type': 'dynamic-param', 'index': 'omega'}, 'value': 2.0, 'step': 0.1},
-        {'label': 'dt', 'id': {'type': 'dynamic-param', 'index': 'dt'}, 'value': 0.01, 'step': 0.01}
+    prevent_initial_call=True
+)
+def update_output(contents, filename):
+    if contents is None:
+        raise PreventUpdate
+
+    df = parse_contents(contents)
+    if df is None:
+        return None, no_update
+
+    # Assuming all columns are relevant
+    return df.to_json(date_format='iso', orient='split'), None
+
+
+@app.callback(
+    [
+        Output('upload-text', 'children'),
+        Output('upload-data', 'style')
     ],
-    'Lorenz63': [
-        {'label': 'sigma', 'id': {'type': 'dynamic-param', 'index': 'sigma'}, 'value': 10, 'step': 1},
-        {'label': 'mu', 'id': {'type': 'dynamic-param', 'index': 'mu'}, 'value': 28, 'step': 1},
-        {'label': 'beta', 'id': {'type': 'dynamic-param', 'index': 'beta'}, 'value': 8 / 3, 'step': 0.01},
-        {'label': 'dt', 'id': {'type': 'dynamic-param', 'index': 'dt'}, 'value': 0.01, 'step': 0.01}
-    ]
-}
-
-def create_dataset_params(dataset_name):
-    # Get parameters for the selected dataset
-    params = dataset_params.get(dataset_name, [])
-    
-    # Create input components for each parameter
-    children = []
-    for param in params:
-        children.append(html.Div([
-            dbc.Label(f"{param['label']}: ", style={"display": "inline-block", "margin-right": "8px"},),
-            dcc.Input(id=param['id'], type="number", value=param['value'], step=param['step'], placeholder=param['label']),
-        ], className="p-2"))
-
-    return children
-
-
-
-model_params = {
-        'KernelDMD': [
-            {'label': 'Reduced Rank', 'id': {'type': 'model-param', 'index': 'reduced_rank'}, 'type': 'checklist', 'default': True},
-            {'label': 'SVD Solver', 'id': {'type': 'model-param', 'index': 'svd_solver'}, 'type': 'dropdown', 'options': ['full', 'arnoldi', 'randomized'], 'default': 'full'},
-            {'label': 'Iterated Power', 'id': {'type': 'model-param', 'index': 'iterated_power'}, 'type': 'number', 'default': 1},
-            # {'label': 'N Oversamples', 'id': {'type': 'model-param', 'index': 'n_oversamples'}, 'type': 'number', 'default': 5},
-            {'label': 'Kernel', 'id': {'type': 'model-param', 'index': 'kernel'}, 'type': 'dropdown', 'options': ['DotProduct', 'RBF', 'Matern', '0.5*DotProduct + 0.5*RBF'], 'default': 'DotProduct'}, #'options': ['DotProduct', 'Exponentiation', 'PairwiseKernel', 'Sum', 'Product']
-            {'label': 'Length Scale', 'id': {'type': 'model-param', 'index': 'length_scale'}, 'type': 'number', 'default': 1.0},
-            # {'label': 'Optimal Sketching', 'id': {'type': 'model-param', 'index': 'optimal_sketching'}, 'type': 'checklist', 'default': False},
-            {'label': 'RNG Seed', 'id': {'type': 'model-param', 'index': 'rng_seed'}, 'type': 'number', 'default': None}
-        ],
-        'DeepEDMD': [
-            {'label': 'Maximum number of epochs', 'id': {'type': 'model-param', 'index': 'max_epochs'}, 'type': 'number', 'default': 10},
-            {'label': 'Reduced Rank', 'id': {'type': 'model-param', 'index': 'reduced_rank'}, 'type': 'checklist', 'default': True},
-            {'label': 'SVD Solver', 'id': {'type': 'model-param', 'index': 'svd_solver'}, 'type': 'dropdown', 'options': ['full', 'arnoldi', 'randomized'], 'default': 'full'},
-            {'label': 'Iterated Power', 'id': {'type': 'model-param', 'index': 'iterated_power'}, 'type': 'number', 'default': 1},
-            # {'label': 'N Oversamples', 'id': {'type': 'model-param', 'index': 'n_oversamples'}, 'type': 'number', 'default': 5},
-            {'label': 'RNG Seed', 'id': {'type': 'model-param', 'index': 'rng_seed'}, 'type': 'number', 'default': None}
-        ],
-        'ExtendedDMD': [
-            {'label': 'Reduced Rank', 'id': {'type': 'model-param', 'index': 'reduced_rank'}, 'type': 'checklist', 'default': True},
-            {'label': 'SVD Solver', 'id': {'type': 'model-param', 'index': 'svd_solver'}, 'type': 'dropdown', 'options': ['full', 'arnoldi', 'randomized'], 'default': 'full'},
-            {'label': 'Iterated Power', 'id': {'type': 'model-param', 'index': 'iterated_power'}, 'type': 'number', 'default': 1},
-            # {'label': 'N Oversamples', 'id': {'type': 'model-param', 'index': 'n_oversamples'}, 'type': 'number', 'default': 5},
-            {'label': 'FeatureMap', 'id': {'type': 'model-param', 'index': 'feature_map'}, 'type': 'dropdown', 'options': ['IdentityFeatureMap'], 'default': 'IdentityFeatureMap'},
-            {'label': 'RNG Seed', 'id': {'type': 'model-param', 'index': 'rng_seed'}, 'type': 'number', 'default': None}
-        ],
-        'DMD': [
-            {'label': 'Reduced Rank', 'id': {'type': 'model-param', 'index': 'reduced_rank'}, 'type': 'checklist', 'default': True},
-            {'label': 'SVD Solver', 'id': {'type': 'model-param', 'index': 'svd_solver'}, 'type': 'dropdown', 'options': ['full', 'arnoldi', 'randomized'], 'default': 'full'},
-            {'label': 'Iterated Power', 'id': {'type': 'model-param', 'index': 'iterated_power'}, 'type': 'number', 'default': 1},
-            # {'label': 'N Oversamples', 'id': {'type': 'model-param', 'index': 'n_oversamples'}, 'type': 'number', 'default': 5},
-            {'label': 'RNG Seed', 'id': {'type': 'model-param', 'index': 'rng_seed'}, 'type': 'number', 'default': None}
-        ],
-    }
-
-def create_model_params(model_name):
-    params = model_params.get(model_name, [])
-
-    children = []
-    for param in params:
-        if param['type'] == 'number':
-            children.append(html.Div([
-                dbc.Label(f"{param['label']}: ", style={"display": "inline-block", "margin-right": "8px"}),
-                dcc.Input(id=param['id'], type="number", value=param['default'], placeholder=param['label']),
-            ], className="p-2"))
-        elif param['type'] == 'dropdown':
-            children.append(html.Div([
-                dbc.Label(f"{param['label']}: ", style={"display": "inline-block", "margin-right": "8px"}),
-                dcc.Dropdown(id=param['id'], options=[{'label': val, 'value': val} for val in param['options']], value=param['default'], clearable=False),
-            ], className="p-2"))
-        elif param['type'] == 'checklist':
-            children.append(html.Div([
-                dbc.Label(f"{param['label']}: ", style={"display": "inline-block", "margin-right": "8px"}),
-                dcc.RadioItems(id=param['id'], options=['True', 'False'], value=str(param['default']), inline=True),
-            ], className="p-2"))
-
-    return children
+    [Input('upload-data', 'contents')],
+    prevent_initial_call=True
+)
+def update_upload_text_and_style(contents):
+    if contents is not None:
+        # Changes when file is uploaded
+        return "File Uploaded", {
+            'width': '100%',
+            'height': '60px',
+            'lineHeight': '60px',
+            'borderWidth': '1px',
+            'borderStyle': 'dashed',
+            'borderRadius': '5px',
+            'textAlign': 'center',
+            'margin': '10px',
+            'backgroundColor': '#90ee90'  # Light green background
+        }
+    else:
+        # Default state
+        return ['Drag and Drop or ', html.A('Select a CSV File')], {
+            'width': '100%',
+            'height': '60px',
+            'lineHeight': '60px',
+            'borderWidth': '1px',
+            'borderStyle': 'dashed',
+            'borderRadius': '5px',
+            'textAlign': 'center',
+            'margin': '10px'
+        }
 
 
 
@@ -338,6 +333,15 @@ def update_click_count_and_show_progress(n_clicks, click_count):
 
     return new_click_count, progress_style
 
+@app.callback(
+    [Output('dimension-dropdown-x', 'value'),
+     Output('dimension-dropdown-y', 'value')],
+    [Input('dataset-dropdown', 'value')],
+    prevent_initial_call=True
+)
+def reset_dimension_dropdowns(dataset):
+    return None, None
+
 
 
 @callback(
@@ -345,7 +349,10 @@ def update_click_count_and_show_progress(n_clicks, click_count):
         Output("eig-plot", "figure"),
         Output("freq-plot", "figure"),
         Output("modes-plot", "figure"),
+        Output('upload-data', 'contents'),
         Output("dataset-plot", "figure"),
+        Output("dimension-dropdown-x", "options"),  # Dynamically set options
+        Output("dimension-dropdown-y", "options"),  # Dynamically set options
         Output("T", "max"),
         Output("freq_range_slider", "max"),
         Output("freq_range_slider", "marks"),
@@ -359,6 +366,8 @@ def update_click_count_and_show_progress(n_clicks, click_count):
     [Input("click-count", "children"),],
 
     [
+        State("dimension-dropdown-x", "value"),
+        State("dimension-dropdown-y", "value"),
         State("freq_range_slider", "value"),
         State("Tmax", "value"),
         State("T", "value"),
@@ -369,113 +378,142 @@ def update_click_count_and_show_progress(n_clicks, click_count):
         State("context_window_len-input", "value"),
         State({'type': 'dynamic-param', 'index': ALL}, 'value'),
         State("T_sample-input", "value"),
+        State('intermediate-value', 'children'),
         State("dataset-dropdown", "value"),
         State("model-dropdown", "value"),
     ],
 
 )
-def main(click_count, value, Tmax, T, mode_selection, rank, tikhonov_reg, model_dynamic_params,
-                       context_window_len, dynamic_params, T_sample, 
+def main(click_count, dim_x, dim_y, value, Tmax, T, mode_selection, rank, tikhonov_reg, model_dynamic_params,
+                       context_window_len, dynamic_params, T_sample, json_data,
                        selected_dataset="LinearModel", selected_model="KernelDMD"):
 
     if click_count == "0":
         # Prevent update before the app loads (no button click yet)
         raise PreventUpdate
 
-    print(dynamic_params)
-    if selected_dataset == "LinearModel":
-        # np.random.seed(10)
-        # H = ortho_group.rvs(10)
-        # eigs = np.exp(-np.arange(10))
-        # A = H @ (eigs * np.eye(10)) @ H.T
-        noise=1.
-        rng_seed=None
-
-        num_features=10
-        r=5
-        l=1
-
-        if dynamic_params!=[]:
-            noise = dynamic_params[0]
-            rng_seed = dynamic_params[1]
-
-            num_features = dynamic_params[2]
-            r = dynamic_params[3]
-            l = dynamic_params[4]
-        
-        if rng_seed is not None:
-            np.random.seed(rng_seed)
-
-        f = lambda x, r : 1. if x<r else 0.
-        H = ortho_group.rvs(num_features) 
-        eigs = np.array([l*f(i, r) for i in range(num_features)]) 
-        A = H @ (eigs * np.eye(num_features)) @ H.T 
-
-        dataset = LinearModel(A = A, noise=noise, rng_seed=rng_seed)
-        _Z = dataset.sample(X0 = np.zeros(A.shape[0]), T = T_sample)
-        X = traj_to_contexts(_Z, context_window_len=context_window_len)
-
-    elif selected_dataset == "LogisticMap":
-        r_param=4.0
-        N_param=None
-        rng_seed=None
-        if dynamic_params!=[]:
-            r_param = dynamic_params[0]
-            N_param = dynamic_params[1]
-            rng_seed = dynamic_params[2]
-        dataset = LogisticMap(r=r_param, N=N_param, rng_seed=rng_seed)
-        _Z = dataset.sample(0.2, T_sample)
+    if json_data is not None and selected_dataset is None:
+        df = pd.read_json(json_data, orient='split')
+        _Z = df.values
         X = traj_to_contexts(_Z,  context_window_len=context_window_len)
+    
+    else:
+        # print(dynamic_params)
+        if selected_dataset == "LinearModel":
+            # np.random.seed(10)
+            # H = ortho_group.rvs(10)
+            # eigs = np.exp(-np.arange(10))
+            # A = H @ (eigs * np.eye(10)) @ H.T
+            noise=1.
+            rng_seed=None
 
-    elif selected_dataset == "LangevinTripleWell1D":
-        gamma=0.1
-        kt=1.0
-        dt=1e-4
-        rng_seed=None
-        if dynamic_params!=[]:
-            gamma = dynamic_params[0]
-            kt = dynamic_params[1]
-            dt = dynamic_params[2]
-            rng_seed = dynamic_params[3]
-        dataset = LangevinTripleWell1D(gamma=gamma, kt=kt, dt=dt, rng_seed=rng_seed)
-        _Z = dataset.sample(0., T_sample)
-        X = traj_to_contexts(_Z,  context_window_len=context_window_len)
+            num_features=10
+            r=5
+            l=1
 
-    elif selected_dataset == "DuffingOscillator":
-        alpha=0.5
-        beta=0.0625
-        gamma=0.1
-        delta=2.5
-        omega=2.0
-        dt=0.01
-        if dynamic_params!=[]:
-            alpha = dynamic_params[0]
-            beta = dynamic_params[1]
-            gamma = dynamic_params[2]
-            delta = dynamic_params[3]
-            omega = dynamic_params[4]
-            dt = dynamic_params[5]
-        dataset = DuffingOscillator(alpha=alpha, beta=beta, gamma=gamma, delta=delta, omega=omega, dt=dt)
-        _Z = dataset.sample(np.array([0.,0.]), T_sample)
-        X = traj_to_contexts(_Z,  context_window_len=context_window_len)
+            if dynamic_params!=[]:
+                noise = dynamic_params[0]
+                rng_seed = dynamic_params[1]
 
-    elif selected_dataset == "Lorenz63":
-        sigma=10
-        mu=28
-        beta=8 / 3
-        dt=0.01
-        if dynamic_params!=[]:
-            sigma = dynamic_params[0]
-            mu = dynamic_params[1]
-            beta = dynamic_params[2]
-            dt = dynamic_params[3]
-        dataset = Lorenz63(sigma=sigma, mu=mu, beta=beta, dt=dt)
-        _Z = dataset.sample(np.array([0,0.1,0]), T_sample)    
-        X = traj_to_contexts(_Z,  context_window_len=context_window_len)
+                num_features = dynamic_params[2]
+                r = dynamic_params[3]
+                l = dynamic_params[4]
+            
+            if rng_seed is not None:
+                np.random.seed(rng_seed)
 
-    fig_dataset = px.line(_Z, labels={"index":"time"})
+            f = lambda x, r : 1. if x<r else 0.
+            H = ortho_group.rvs(num_features) 
+            eigs = np.array([l*f(i, r) for i in range(num_features)]) 
+            A = H @ (eigs * np.eye(num_features)) @ H.T 
 
-    print(model_dynamic_params)
+            dataset = LinearModel(A = A, noise=noise, rng_seed=rng_seed)
+            _Z = dataset.sample(X0 = np.zeros(A.shape[0]), T = T_sample)
+            X = traj_to_contexts(_Z, context_window_len=context_window_len)
+
+        elif selected_dataset == "LogisticMap":
+            r_param=4.0
+            N_param=None
+            rng_seed=None
+            if dynamic_params!=[]:
+                r_param = dynamic_params[0]
+                N_param = dynamic_params[1]
+                rng_seed = dynamic_params[2]
+            dataset = LogisticMap(r=r_param, N=N_param, rng_seed=rng_seed)
+            _Z = dataset.sample(0.2, T_sample)
+            X = traj_to_contexts(_Z,  context_window_len=context_window_len)
+
+        elif selected_dataset == "LangevinTripleWell1D":
+            gamma=0.1
+            kt=1.0
+            dt=1e-4
+            rng_seed=None
+            if dynamic_params!=[]:
+                gamma = dynamic_params[0]
+                kt = dynamic_params[1]
+                dt = dynamic_params[2]
+                rng_seed = dynamic_params[3]
+            dataset = LangevinTripleWell1D(gamma=gamma, kt=kt, dt=dt, rng_seed=rng_seed)
+            _Z = dataset.sample(0., T_sample)
+            X = traj_to_contexts(_Z,  context_window_len=context_window_len)
+
+        elif selected_dataset == "DuffingOscillator":
+            alpha=0.5
+            beta=0.0625
+            gamma=0.1
+            delta=2.5
+            omega=2.0
+            dt=0.01
+            if dynamic_params!=[]:
+                alpha = dynamic_params[0]
+                beta = dynamic_params[1]
+                gamma = dynamic_params[2]
+                delta = dynamic_params[3]
+                omega = dynamic_params[4]
+                dt = dynamic_params[5]
+            dataset = DuffingOscillator(alpha=alpha, beta=beta, gamma=gamma, delta=delta, omega=omega, dt=dt)
+            _Z = dataset.sample(np.array([0.,0.]), T_sample)
+            X = traj_to_contexts(_Z,  context_window_len=context_window_len)
+
+            # import pandas as pd
+            # df = pd.DataFrame({'dim0': _Z[:, 0],
+            #            'dim1': _Z[:, 1]})
+            # df.to_csv('dataset_example.csv', index=False) 
+
+        elif selected_dataset == "Lorenz63":
+            sigma=10
+            mu=28
+            beta=8 / 3
+            dt=0.01
+            if dynamic_params!=[]:
+                sigma = dynamic_params[0]
+                mu = dynamic_params[1]
+                beta = dynamic_params[2]
+                dt = dynamic_params[3]
+            dataset = Lorenz63(sigma=sigma, mu=mu, beta=beta, dt=dt)
+            _Z = dataset.sample(np.array([0,0.1,0]), T_sample)    
+            X = traj_to_contexts(_Z,  context_window_len=context_window_len)
+
+    # print(_Z)
+    # print(len(_Z))
+    # print(len(_Z[0]))
+
+    num_dimensions = len(_Z[0])
+    dimension_options = [{'label': f'variable {i}', 'value': i} for i in range(num_dimensions)]
+
+    if dim_x is not None and dim_y is not None:
+        # print(_Z[:, dim_x])
+        # print(_Z[:, dim_y])
+
+        fig_dataset = px.line(
+            x=_Z[:, dim_x], 
+            y=_Z[:, dim_y], 
+            labels={"x": f"variable {dim_x}", "y": f"variable {dim_y}"}
+        )
+        fig_dataset.update_layout(title="Dataset Plot", xaxis_title=f"variable {dim_x}", yaxis_title=f"variable {dim_y}")
+
+    else:
+        fig_dataset = px.line(_Z, labels={"index":"time"})
 
     if selected_model == "KernelDMD":
         operator_kwargs = {'kernel': DotProduct()}
@@ -589,7 +627,7 @@ def main(click_count, value, Tmax, T, mode_selection, rank, tikhonov_reg, model_
 
     progress_style = {"height": "20px", "visibility": "hidden"}
 
-    return (fig_eig, fig_freqs, fig_modes, fig_dataset, Tmax, 
+    return (fig_eig, fig_freqs, fig_modes, None, fig_dataset, dimension_options, dimension_options, Tmax, 
             int(viz.infos["frequency"].max()) + 1, frequency_dict, 
             modes_select_options, rank, tikhonov_reg, context_window_len, progress_style)
 
