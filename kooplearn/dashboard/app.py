@@ -219,7 +219,7 @@ app.layout = dbc.Container(
         dbc.Row([
             dbc.Col([
                 dbc.Row([
-                    dbc.Col([html.Img(src="https://kooplearn.readthedocs.io/en/latest/_static/logo.svg", height="120px")], align="center"),
+                    dbc.Col([html.Img(src="https://kooplearn.readthedocs.io/latest/_static/logo.svg", height="120px")], align="center"),
                     dbc.Col([update_button], align="center"),
                     ]),
                 tabs_control
